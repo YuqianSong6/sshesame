@@ -7,90 +7,125 @@ import (
 	"strings"
 )
 
-type readLiner interface {
-	ReadLine() (string, error)
+type FileSystem struct {
+	files    map[string]string // filename -> content
+	directories map[string]bool // directory names
 }
 
-type commandContext struct {
-	args           []string
-	stdin          readLiner
-	stdout, stderr io.Writer
-	pty            bool
-	user           string
+func newFileSystem() *FileSystem {
+	return &FileSystem{
+		files: map[string]string{
+			"/etc/passwd":      "root:x:0:0:root:/root:/bin/bash",
+			"/etc/shadow":      "root:$6$YTJ7FKnfsB4esnbS$5dvmYk2.GXVWhDo2TYGN7hCitD/wU9Cov.uZD8xsnseuf1r0ARX3qodIKiDsdoQA454b8IMPMOnUWDmDJVkeg1:19755:0:99999:7:::",
+			"/var/log/syslog":  "Jan 1 11:30:53 Syslog: System booted",
+			"/home/user/notes.txt": "Hello John, I'm e-mailing you about ...",
+		},
+		directories: map[string]bool{
+			"/etc":      true,
+			"/var/log":  true,
+			"/home/user": true,
+		},
+	}
 }
 
-type command interface {
-	execute(context commandContext) (uint32, error)
+func (fs *FileSystem) readFile(filename string) (string, bool) {
+	content, exists := fs.files[filename]
+	return content, exists
 }
 
-var commands = map[string]command{
-	"sh":    cmdShell{},
-	"true":  cmdTrue{},
-	"false": cmdFalse{},
-	"echo":  cmdEcho{},
-	"cat":   cmdCat{},
-	"su":    cmdSu{},
+func (fs *FileSystem) writeFile(filename, content string) {
+	fs.files[filename] = content
 }
 
-var shellProgram = []string{"sh"}
+func (fs *FileSystem) deleteFile(filename string) bool {
+	if _, exists := fs.files[filename]; exists {
+		delete(fs.files, filename)
+		return true
+	}
+	return false
+}
 
-func executeProgram(context commandContext) (uint32, error) {
-	if len(context.args) == 0 {
+func (fs *FileSystem) createDirectory(dirname string) {
+	fs.directories[dirname] = true
+}
+
+type cmdLs struct{}
+
+func (cmdLs) execute(context commandContext) (uint32, error) {
+	for dir := range fs.directories {
+		fmt.Fprintln(context.stdout, dir, "[DIR]")
+	}
+	for file := range fs.files {
+		fmt.Fprintln(context.stdout, file)
+	}
+	return 0, nil
+}
+
+type cmdCat struct{}
+
+func (cmdCat) execute(context commandContext) (uint32, error) {
+	if len(context.args) < 2 {
+		fmt.Fprintln(context.stderr, "Usage: cat <filename>")
+		return 1, nil
+	}
+	content, exists := fs.readFile(context.args[1])
+	if !exists {
+		fmt.Fprintf(context.stderr, "cat: %s: No such file
+", context.args[1])
+		return 1, nil
+	}
+	fmt.Fprintln(context.stdout, content)
+	return 0, nil
+}
+
+type cmdTouch struct{}
+
+func (cmdTouch) execute(context commandContext) (uint32, error) {
+	if len(context.args) < 2 {
+		fmt.Fprintln(context.stderr, "Usage: touch <filename>")
+		return 1, nil
+	}
+	fs.writeFile(context.args[1], "")
+	return 0, nil
+}
+
+type cmdEcho struct{}
+
+func (cmdEcho) execute(context commandContext) (uint32, error) {
+	if len(context.args) < 4 || context.args[len(context.args)-2] != ">" {
+		fmt.Fprintln(context.stderr, "Usage: echo <text> > <file>")
+		return 1, nil
+	}
+	filename := context.args[len(context.args)-1]
+	content := strings.Join(context.args[1:len(context.args)-2], " ")
+	fs.writeFile(filename, content)
+	return 0, nil
+}
+
+type cmdRm struct{}
+
+func (cmdRm) execute(context commandContext) (uint32, error) {
+	if len(context.args) < 2 {
+		fmt.Fprintln(context.stderr, "Usage: rm <filename>")
+		return 1, nil
+	}
+	if fs.deleteFile(context.args[1]) {
 		return 0, nil
 	}
-	command := commands[context.args[0]]
-	if command == nil {
-		_, err := fmt.Fprintf(context.stderr, "%v: command not found\n", context.args[0])
-		return 127, err
-	}
-	return command.execute(context)
+	fmt.Fprintf(context.stderr, "rm: %s: No such file
+", context.args[1])
+	return 1, nil
 }
 
-type cmdShell struct{}
+type cmdMkdir struct{}
 
-func (cmdShell) execute(context commandContext) (uint32, error) {
-	var prompt string
-	if context.pty {
-		switch context.user {
-		case "root":
-			prompt = "# "
-		default:
-			prompt = "$ "
-		}
+func (cmdMkdir) execute(context commandContext) (uint32, error) {
+	if len(context.args) < 2 {
+		fmt.Fprintln(context.stderr, "Usage: mkdir <dirname>")
+		return 1, nil
 	}
-	var lastStatus uint32
-	var line string
-	var err error
-	for {
-		_, err = fmt.Fprint(context.stdout, prompt)
-		if err != nil {
-			return lastStatus, err
-		}
-		line, err = context.stdin.ReadLine()
-		if err != nil {
-			return lastStatus, err
-		}
-		args := strings.Fields(line)
-		if len(args) == 0 {
-			continue
-		}
-		if args[0] == "exit" {
-			var err error
-			var status uint64 = uint64(lastStatus)
-			if len(args) > 1 {
-				status, err = strconv.ParseUint(args[1], 10, 32)
-				if err != nil {
-					status = 255
-				}
-			}
-			return uint32(status), nil
-		}
-		newContext := context
-		newContext.args = args
-		if lastStatus, err = executeProgram(newContext); err != nil {
-			return lastStatus, err
-		}
-	}
+	fs.createDirectory(context.args[1])
+	return 0, nil
 }
 
 type cmdTrue struct{}
@@ -105,35 +140,6 @@ func (cmdFalse) execute(context commandContext) (uint32, error) {
 	return 1, nil
 }
 
-type cmdEcho struct{}
-
-func (cmdEcho) execute(context commandContext) (uint32, error) {
-	_, err := fmt.Fprintln(context.stdout, strings.Join(context.args[1:], " "))
-	return 0, err
-}
-
-type cmdCat struct{}
-
-func (cmdCat) execute(context commandContext) (uint32, error) {
-	if len(context.args) > 1 {
-		for _, file := range context.args[1:] {
-			if _, err := fmt.Fprintf(context.stderr, "%v: %v: No such file or directory\n", context.args[0], file); err != nil {
-				return 0, err
-			}
-		}
-		return 1, nil
-	}
-	var line string
-	var err error
-	for err == nil {
-		line, err = context.stdin.ReadLine()
-		if err == nil {
-			_, err = fmt.Fprintln(context.stdout, line)
-		}
-	}
-	return 0, err
-}
-
 type cmdSu struct{}
 
 func (cmdSu) execute(context commandContext) (uint32, error) {
@@ -142,6 +148,28 @@ func (cmdSu) execute(context commandContext) (uint32, error) {
 	if len(context.args) > 1 {
 		newContext.user = context.args[1]
 	}
-	newContext.args = shellProgram
+	newContext.args = []string{"sh"}
 	return executeProgram(newContext)
+}
+
+type cmdShell struct{}
+
+func (cmdShell) execute(context commandContext) (uint32, error) {
+	fmt.Fprintln(context.stdout, "Shell started. Type 'exit' to leave.")
+	return 0, nil
+}
+
+var fs = newFileSystem()
+
+var commands = map[string]command{
+	"ls":    cmdLs{},
+	"cat":   cmdCat{},
+	"touch": cmdTouch{},
+	"echo":  cmdEcho{},
+	"rm":    cmdRm{},
+	"mkdir": cmdMkdir{},
+	"true":  cmdTrue{},
+	"false": cmdFalse{},
+	"su":    cmdSu{},
+	"sh":    cmdShell{},
 }
