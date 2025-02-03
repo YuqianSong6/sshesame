@@ -70,8 +70,7 @@ func (cmdCat) execute(context commandContext) (uint32, error) {
 	}
 	content, exists := fs.readFile(context.args[1])
 	if !exists {
-		fmt.Fprintf(context.stderr, "cat: %s: No such file
-", context.args[1])
+		fmt.Fprintf(context.stderr, "cat: %s: No such file", context.args[1])
 		return 1, nil
 	}
 	fmt.Fprintln(context.stdout, content)
@@ -112,8 +111,7 @@ func (cmdRm) execute(context commandContext) (uint32, error) {
 	if fs.deleteFile(context.args[1]) {
 		return 0, nil
 	}
-	fmt.Fprintf(context.stderr, "rm: %s: No such file
-", context.args[1])
+	fmt.Fprintf(context.stderr, "rm: %s: No such file", context.args[1])
 	return 1, nil
 }
 
