@@ -142,15 +142,15 @@ func (cmdCat) execute(context commandContext) (uint32, error) {
 		}
 		return 1, nil
 	}
-	var line string
-	var err error
-	for err == nil {
-		line, err = context.stdin.ReadLine()
-		if err == nil {
-			_, err = fmt.Fprintln(context.stdout, line)
-		}
-	}
-	return 0, err
+	//var line string
+	//var err error
+	//for err == nil {
+	//	line, err = context.stdin.ReadLine()
+	//	if err == nil {
+	//		_, err = fmt.Fprintln(context.stdout, line)
+	//	}
+	//}
+	return 0, nil
 }
 
 type cmdLs struct{}
@@ -176,10 +176,6 @@ func (cmdTouch) execute(context commandContext) (uint32, error) {
 		} else {
 			if len(context.args) == 2 {
 				FileSystem[file] = ""
-			}
-			if len(context.args) == 3 {
-				content := context.args[2]
-				FileSystem[file] = content
 			}
 		}
 	} else {
