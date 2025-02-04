@@ -67,7 +67,7 @@ auth:
     accepted: true
 
     # Instruction for the keyboard interactive authentication.
-    instruction: Answer these weird questions to log in!
+    instruction: Please verify your user credentials.
 
     questions:
       - text: "User: " # Keyboard interactive authentication question text.
@@ -84,7 +84,7 @@ ssh_proto:
   # Sent to the client after key exchange completed but before authentication.
   # If unspecified or null, a reasonable default is used.
   # If empty, no banner is sent.
-  banner: ALERT! You are entering a secured area! Your IP, Login Time, and Username have been noted and have been sent to the server administrator! This service is restricted to authorized users only. All activities on this system are logged. Unauthorized access will be fully investigated and reported to the appropriate law enforcement agencies.
+  banner: Welcome back! All activities on this system are monitored.
 
   # The maximum number of bytes sent or received after which a new key is negotiated. It must be at least 256.
   # If unspecified, null or 0, a size suitable for the chosen cipher is used.

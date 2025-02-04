@@ -29,8 +29,9 @@ var commands = map[string]command{
 	"false": cmdFalse{},
 	"echo":  cmdEcho{},
 	"cat":   cmdCat{},
-	"su":    cmdSu{},
 	"ls":    cmdLs{},
+	"touch": cmdTouch{},
+	"su":    cmdSu{},
 }
 
 var shellProgram = []string{"sh"}
@@ -160,6 +161,30 @@ func (cmdLs) execute(context commandContext) (uint32, error) {
 		if err != nil {
 			return 1, err
 		}
+	}
+	return 0, nil
+}
+
+type cmdTouch struct{}
+
+func (cmdTouch) execute(context commandContext) (uint32, error) {
+	if len(context.args) > 1 {
+		file := context.args[1]
+		if _, exists := FileSystem[file]; exists && context.user != "root" {
+			_, err := fmt.Fprintln(context.stdout, "touch: cannot touch \""+file+"\" : Permission denied")
+			return 1, err
+		} else {
+			if len(context.args) == 2 {
+				FileSystem[file] = ""
+			}
+			if len(context.args) == 3 {
+				content := context.args[2]
+				FileSystem[file] = content
+			}
+		}
+	} else {
+		_, err := fmt.Fprintln(context.stdout, "usage: touch [-A [-][[hh]mm]SS] [-achm] [-r file] [-t [[CC]YY]MMDDhhmm[.SS]]\n[-d YYYY-MM-DDThh:mm:SS[.frac][tz]] file ...")
+		return 1, err
 	}
 	return 0, nil
 }
