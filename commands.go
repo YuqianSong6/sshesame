@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -31,6 +32,8 @@ var commands = map[string]command{
 	"cat":   cmdCat{},
 	"ls":    cmdLs{},
 	"touch": cmdTouch{},
+	"mkdir": cmdMkdir{},
+	"cd":    cmdCd{},
 	"su":    cmdSu{},
 }
 
@@ -116,47 +119,115 @@ func (cmdEcho) execute(context commandContext) (uint32, error) {
 	return 0, err
 }
 
-var FileSystem = map[string]string{
-	"usr.txt": "eberk0, cswyne, edan, aroullier, john, henk",
-	"pwd.txt": "$2a$04$3ise9UoQ38ceyn6qUmb8neC8UyQnfNiog8ObMSPx.4KLV/vYU0XaC, $2a$04$Z2Orf4kkPuwncqrXae7L1uE5elj1Em9fhw4f8PmwS4POBAdvfzRPa, $2a$04$NkF1cDQf6CSkF83zfucmtO8.yChntXtG8HLB2zJJiZTiKIR2yHbTa, $2a$04$VFAUxOCo5hZuKjQqN6FW/.6TNoLQjFdId02Fk0pPhC0NmWiyUjwCW, $2a$04$y/dBmr4B7zWaNGpTNpjqUuZRHz9bxBaH0LwfEouan2283rBxoLWxu, $2a$04$ATK3lPdtQokdeoBJh.aOweV9h9yU6SMSQ24b7jXDZeUoHC0sMWmZS",
-	"cc.txt":  "null, 4936739041871256, null, 5133014750298309, 3531203913896199, 4405957561612502",
+type FileSystemNode struct {
+	IsDir    bool
+	Content  string
+	Children map[string]*FileSystemNode
+}
+
+type FileSystemType struct {
+	Root    *FileSystemNode
+	Current *FileSystemNode
+	Path    string
+}
+
+var FileSystem = FileSystemType{
+	Root: &FileSystemNode{
+		IsDir:    true,
+		Children: make(map[string]*FileSystemNode),
+	},
+	Path: "/",
+}
+
+func init() {
+	FileSystem.Current = FileSystem.Root
+	FileSystem.Root.Children["usr.txt"] = &FileSystemNode{Content: "eberk0, cswyne, edan, aroullier, john, henk"}
+	FileSystem.Root.Children["pwd.txt"] = &FileSystemNode{Content: "$2a$04$3ise9UoQ38ceyn6qUmb8neC8UyQnfNiog8ObMSPx.4KLV/vYU0XaC, $2a$04$Z2Orf4kkPuwncqrXae7L1uE5elj1Em9fhw4f8PmwS4POBAdvfzRPa, $2a$04$NkF1cDQf6CSkF83zfucmtO8.yChntXtG8HLB2zJJiZTiKIR2yHbTa, $2a$04$VFAUxOCo5hZuKjQqN6FW/.6TNoLQjFdId02Fk0pPhC0NmWiyUjwCW, $2a$04$y/dBmr4B7zWaNGpTNpjqUuZRHz9bxBaH0LwfEouan2283rBxoLWxu, $2a$04$ATK3lPdtQokdeoBJh.aOweV9h9yU6SMSQ24b7jXDZeUoHC0sMWmZS"}
+	FileSystem.Root.Children["checking_account.txt"] = &FileSystemNode{Content: "null, 4936739041871256, null, 5133014750298309, 3531203913896199, 4405957561612502"}
+}
+
+type cmdMkdir struct{}
+
+func (cmdMkdir) execute(context commandContext) (uint32, error) {
+	if len(context.args) < 2 {
+		_, err := fmt.Fprintln(context.stderr, "mkdir: missing operand")
+		return 1, err
+	}
+	for _, dir := range context.args[1:] {
+		parts := strings.Split(filepath.Clean(dir), "/")
+		node := FileSystem.Current
+		for _, part := range parts {
+			if part == "" {
+				continue
+			}
+			if _, exists := node.Children[part]; !exists {
+				node.Children[part] = &FileSystemNode{IsDir: true, Children: make(map[string]*FileSystemNode)}
+			}
+			node = node.Children[part]
+		}
+	}
+	return 0, nil
+}
+
+type cmdCd struct{}
+
+func (cmdCd) execute(context commandContext) (uint32, error) {
+	if len(context.args) < 2 {
+		FileSystem.Current = FileSystem.Root
+		FileSystem.Path = "/"
+		return 0, nil
+	}
+	targetPath := filepath.Clean(context.args[1])
+	if targetPath == "/" {
+		FileSystem.Current = FileSystem.Root
+		FileSystem.Path = "/"
+		return 0, nil
+	}
+	parts := strings.Split(targetPath, "/")
+	node := FileSystem.Current
+	for _, part := range parts {
+		if part == ".." {
+			// No parent traversal beyond root
+			continue
+		} else if part == "." || part == "" {
+			continue
+		} else {
+			if child, exists := node.Children[part]; exists && child.IsDir {
+				node = child
+			} else {
+				_, err := fmt.Fprintf(context.stderr, "cd: %s: No such file or directory\n", targetPath)
+				return 1, err
+			}
+		}
+	}
+	FileSystem.Current = node
+	FileSystem.Path = targetPath
+	return 0, nil
 }
 
 type cmdCat struct{}
 
 func (cmdCat) execute(context commandContext) (uint32, error) {
-	if len(context.args) > 1 {
-		for _, file := range context.args[1:] {
-			if content, exists := FileSystem[file]; exists {
-				_, err := fmt.Fprintln(context.stdout, content)
-				if err != nil {
-					return 0, err
-				}
-			} else {
-				_, err := fmt.Fprintf(context.stderr, "%v: %v: No such file or directory\n", context.args[0], file)
-				if err != nil {
-					return 0, err
-				}
-
-			}
-		}
-		return 1, nil
+	if len(context.args) < 2 {
+		_, err := fmt.Fprintln(context.stderr, "cat: missing operand")
+		return 1, err
 	}
-	//var line string
-	//var err error
-	//for err == nil {
-	//	line, err = context.stdin.ReadLine()
-	//	if err == nil {
-	//		_, err = fmt.Fprintln(context.stdout, line)
-	//	}
-	//}
+	for _, file := range context.args[1:] {
+		if node, exists := FileSystem.Current.Children[file]; exists && !node.IsDir {
+			_, err := fmt.Fprintln(context.stdout, node.Content)
+			return 0, err
+		} else {
+			_, err := fmt.Fprintf(context.stderr, "cat: %s: No such file or directory\n", file)
+			return 1, err
+		}
+	}
 	return 0, nil
 }
 
 type cmdLs struct{}
 
 func (cmdLs) execute(context commandContext) (uint32, error) {
-	for file := range FileSystem {
+	for file := range FileSystem.Current.Children {
 		_, err := fmt.Fprintln(context.stdout, file)
 		if err != nil {
 			return 1, err
@@ -168,19 +239,12 @@ func (cmdLs) execute(context commandContext) (uint32, error) {
 type cmdTouch struct{}
 
 func (cmdTouch) execute(context commandContext) (uint32, error) {
-	if len(context.args) > 1 {
-		file := context.args[1]
-		if _, exists := FileSystem[file]; exists && context.user != "root" {
-			_, err := fmt.Fprintln(context.stdout, "touch: cannot touch \""+file+"\" : Permission denied")
-			return 1, err
-		} else {
-			if len(context.args) == 2 {
-				FileSystem[file] = ""
-			}
-		}
-	} else {
-		_, err := fmt.Fprintln(context.stdout, "usage: touch [-A [-][[hh]mm]SS] [-achm] [-r file] [-t [[CC]YY]MMDDhhmm[.SS]]\n[-d YYYY-MM-DDThh:mm:SS[.frac][tz]] file ...")
+	if len(context.args) < 2 {
+		_, err := fmt.Fprintln(context.stderr, "usage: touch [-A [-][[hh]mm]SS] [-achm] [-r file] [-t [[CC]YY]MMDDhhmm[.SS]]\n[-d YYYY-MM-DDThh:mm:SS[.frac][tz]] file ...")
 		return 1, err
+	}
+	for _, file := range context.args[1:] {
+		FileSystem.Current.Children[file] = &FileSystemNode{Content: ""}
 	}
 	return 0, nil
 }
