@@ -34,6 +34,7 @@ var commands = map[string]command{
 	"touch": cmdTouch{},
 	"mkdir": cmdMkdir{},
 	"cd":    cmdCd{},
+	"pwd":   cmdPwd{},
 	"su":    cmdSu{},
 }
 
@@ -144,6 +145,13 @@ func init() {
 	FileSystem.Root.Children["usr.txt"] = &FileSystemNode{Content: "eberk0, cswyne, edan, aroullier, john, henk"}
 	FileSystem.Root.Children["pwd.txt"] = &FileSystemNode{Content: "$2a$04$3ise9UoQ38ceyn6qUmb8neC8UyQnfNiog8ObMSPx.4KLV/vYU0XaC, $2a$04$Z2Orf4kkPuwncqrXae7L1uE5elj1Em9fhw4f8PmwS4POBAdvfzRPa, $2a$04$NkF1cDQf6CSkF83zfucmtO8.yChntXtG8HLB2zJJiZTiKIR2yHbTa, $2a$04$VFAUxOCo5hZuKjQqN6FW/.6TNoLQjFdId02Fk0pPhC0NmWiyUjwCW, $2a$04$y/dBmr4B7zWaNGpTNpjqUuZRHz9bxBaH0LwfEouan2283rBxoLWxu, $2a$04$ATK3lPdtQokdeoBJh.aOweV9h9yU6SMSQ24b7jXDZeUoHC0sMWmZS"}
 	FileSystem.Root.Children["checking_account.txt"] = &FileSystemNode{Content: "null, 4936739041871256, null, 5133014750298309, 3531203913896199, 4405957561612502"}
+}
+
+type cmdPwd struct{}
+
+func (cmdPwd) execute(context commandContext) (uint32, error) {
+	_, err := fmt.Fprintln(context.stdout, FileSystem.Path)
+	return 0, err
 }
 
 type cmdMkdir struct{}
