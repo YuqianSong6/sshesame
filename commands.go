@@ -150,7 +150,23 @@ func init() {
 type cmdPwd struct{}
 
 func (cmdPwd) execute(context commandContext) (uint32, error) {
-	_, err := fmt.Fprintln(context.stdout, FileSystem.Path)
+	var pathParts []string
+	node := FileSystem.Current
+
+	// Traverse up to reconstruct the full path
+	for node != FileSystem.Root {
+		for name, child := range FileSystem.Root.Children {
+			if child == node {
+				pathParts = append([]string{name}, pathParts...)
+				break
+			}
+		}
+		node = FileSystem.Root // No parent tracking, assume root reached
+	}
+
+	fullPath := "/" + strings.Join(pathParts, "/")
+
+	_, err := fmt.Fprintln(context.stdout, fullPath)
 	return 0, err
 }
 
