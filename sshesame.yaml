@@ -84,20 +84,20 @@ ssh_proto:
   # Sent to the client after key exchange completed but before authentication.
   # If unspecified or null, a reasonable default is used.
   # If empty, no banner is sent.
-banner: |
-  \033[1;34m****************************************************\033[0m
-  \033[1;32m*                                                  *\033[0m
-  \033[1;32m*      Welcome back, Admin!                         *\033[0m
-  \033[1;32m*                                                  *\033[0m
-  \033[1;31m*   Unauthorized access is strictly prohibited!     *\033[0m
-  \033[1;31m*   If you have gained access improperly,          *\033[0m
-  \033[1;31m*   please contact ICT Security immediately at:    *\033[0m
-  \033[1;33m*   security-team@naxos.nl                         *\033[0m
-  \033[1;31m*                                                  *\033[0m
-  \033[1;33m*   All activities on this system are logged       *\033[0m
-  \033[1;33m*   and monitored.                                 *\033[0m
-  \033[1;32m*                                                  *\033[0m
-  \033[1;34m****************************************************\033[0m
+  banner: |
+    \033[1;34m****************************************************\033[0m
+    \033[1;32m*                                                  *\033[0m
+    \033[1;32m*      Welcome back, Admin!                         *\033[0m
+    \033[1;32m*                                                  *\033[0m
+    \033[1;31m*   Unauthorized access is strictly prohibited!     *\033[0m
+    \033[1;31m*   If you have gained access improperly,          *\033[0m
+    \033[1;31m*   please contact ICT Security immediately at:    *\033[0m
+    \033[1;33m*   security-team@naxos.nl                         *\033[0m
+    \033[1;31m*                                                  *\033[0m
+    \033[1;33m*   All activities on this system are logged       *\033[0m
+    \033[1;33m*   and monitored.                                 *\033[0m
+    \033[1;32m*                                                  *\033[0m
+    \033[1;34m****************************************************\033[0m
 
 
   # The maximum number of bytes sent or received after which a new key is negotiated. It must be at least 256.
