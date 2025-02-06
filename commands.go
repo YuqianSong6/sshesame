@@ -124,6 +124,7 @@ type FileSystemNode struct {
 	IsDir    bool
 	Content  string
 	Children map[string]*FileSystemNode
+	Parent   *FileSystemNode
 }
 
 type FileSystemType struct {
@@ -150,23 +151,7 @@ func init() {
 type cmdPwd struct{}
 
 func (cmdPwd) execute(context commandContext) (uint32, error) {
-	var pathParts []string
-	node := FileSystem.Current
-
-	// Traverse up to reconstruct the full path
-	for node != FileSystem.Root {
-		for name, child := range FileSystem.Root.Children {
-			if child == node {
-				pathParts = append([]string{name}, pathParts...)
-				break
-			}
-		}
-		node = FileSystem.Root // No parent tracking, assume root reached
-	}
-
-	fullPath := "/" + strings.Join(pathParts, "/")
-
-	_, err := fmt.Fprintln(context.stdout, fullPath)
+	_, err := fmt.Fprintln(context.stdout, FileSystem.Path)
 	return 0, err
 }
 
@@ -177,6 +162,7 @@ func (cmdMkdir) execute(context commandContext) (uint32, error) {
 		_, err := fmt.Fprintln(context.stderr, "mkdir: missing operand")
 		return 1, err
 	}
+
 	for _, dir := range context.args[1:] {
 		parts := strings.Split(filepath.Clean(dir), "/")
 		node := FileSystem.Current
@@ -185,7 +171,11 @@ func (cmdMkdir) execute(context commandContext) (uint32, error) {
 				continue
 			}
 			if _, exists := node.Children[part]; !exists {
-				node.Children[part] = &FileSystemNode{IsDir: true, Children: make(map[string]*FileSystemNode)}
+				node.Children[part] = &FileSystemNode{
+					IsDir:    true,
+					Children: make(map[string]*FileSystemNode),
+					Parent:   node, // Set parent reference
+				}
 			}
 			node = node.Children[part]
 		}
@@ -209,23 +199,40 @@ func (cmdCd) execute(context commandContext) (uint32, error) {
 	}
 	parts := strings.Split(targetPath, "/")
 	node := FileSystem.Current
+	var subfolders []string
+	if strings.HasPrefix(targetPath, "/") {
+		node = FileSystem.Root
+		subfolders = []string{}
+	} else {
+		subfolders = strings.Split(FileSystem.Path, "/")
+	}
+
 	for _, part := range parts {
 		if part == ".." {
-			// No parent traversal beyond root
-			continue
+			if node.Parent != nil {
+				node = node.Parent
+				if len(subfolders) > 0 {
+					subfolders = subfolders[:len(subfolders)-1]
+				}
+			}
 		} else if part == "." || part == "" {
 			continue
 		} else {
 			if child, exists := node.Children[part]; exists && child.IsDir {
 				node = child
+				subfolders = append(subfolders, part)
 			} else {
 				_, err := fmt.Fprintf(context.stderr, "cd: %s: No such file or directory\n", targetPath)
 				return 1, err
 			}
 		}
 	}
+
 	FileSystem.Current = node
-	FileSystem.Path = targetPath
+	FileSystem.Path = "/" + strings.Join(subfolders, "/")
+	if FileSystem.Path == "/" {
+		FileSystem.Path = "/"
+	}
 	return 0, nil
 }
 
