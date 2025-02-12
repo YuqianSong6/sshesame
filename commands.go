@@ -229,10 +229,7 @@ func (cmdCd) execute(context commandContext) (uint32, error) {
 	}
 
 	FileSystem.Current = node
-	FileSystem.Path = "/" + strings.Join(subfolders, "/")
-	if FileSystem.Path == "/" {
-		FileSystem.Path = "/"
-	}
+	FileSystem.Path = filepath.Clean("/" + strings.Join(subfolders, "/"))
 	return 0, nil
 }
 
