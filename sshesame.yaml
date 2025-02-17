@@ -27,7 +27,7 @@ logging:
   timestamps: true
 
   # Log full raw details of all global requests, channels and channel requests.
-  debug: true
+  debug: false
 
   # Address to export and serve prometheus metrics on.
   # If unspecified or null, metrics are not served.
