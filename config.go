@@ -15,7 +15,6 @@ import (
 	"math/big"
 	"os"
 	"path"
-	"time"
 
 	"golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v2"
