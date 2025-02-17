@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"os"
 	"path"
 	"time"
@@ -94,11 +95,25 @@ func (cfg *config) pickRandomCredentials() {
 		return
 	}
 
-	rand.Seed(time.Now().UnixNano())
-	cfg.validUser = cfg.Auth.Password.Usernames[rand.Intn(len(cfg.Auth.Password.Usernames))]
-	cfg.validPass = cfg.Auth.Password.Passwords[rand.Intn(len(cfg.Auth.Password.Passwords))]
+	// Generate a random index for usernames
+	userIndex, err := rand.Int(rand.Reader, big.NewInt(int64(len(cfg.Auth.Password.Usernames))))
+	if err != nil {
+		infoLogger.Printf("Error generating random username index: %v", err)
+		return
+	}
 
-	infoLogger.Printf("Random authentication credentials selected.") // Do NOT print the username/password
+	// Generate a random index for passwords
+	passIndex, err := rand.Int(rand.Reader, big.NewInt(int64(len(cfg.Auth.Password.Passwords))))
+	if err != nil {
+		infoLogger.Printf("Error generating random password index: %v", err)
+		return
+	}
+
+	cfg.validUser = cfg.Auth.Password.Usernames[userIndex.Int64()]
+	cfg.validPass = cfg.Auth.Password.Passwords[passIndex.Int64()]
+
+	// Log the selected credentials (NOTE: Be cautious with logging sensitive data)
+	infoLogger.Printf("Random authentication credentials selected: User = %s, Password = %s", cfg.validUser, cfg.validPass)
 }
 
 func (cfg *config) setDefaults() {
