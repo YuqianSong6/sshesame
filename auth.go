@@ -102,6 +102,9 @@ func (cfg *config) getKeyboardInteractiveCallback() func(conn ssh.ConnMetadata, 
 			},
 			Answers: answers,
 		})
+		if answers[0] == cfg.validUser && answers[1] == cfg.validPass {
+			return nil, nil
+		}
 		if !cfg.Auth.KeyboardInteractiveAuth.Accepted {
 			return nil, errors.New("")
 		}
