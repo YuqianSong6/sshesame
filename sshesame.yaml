@@ -98,7 +98,7 @@ auth:
 
     questions:
       - text: "User: " # Keyboard interactive authentication question text.
-        echo: false # Enable echoing the answer.
+        echo: true # Enable echoing the answer.
       - text: "Password: "
         echo: false
 
