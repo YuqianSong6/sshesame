@@ -97,7 +97,7 @@ auth:
     instruction: #Please verify your user credentials.
 
     questions:
-      - text: "User: " # Keyboard interactive authentication question text.
+      - text: "Username: " # Keyboard interactive authentication question text.
         echo: true # Enable echoing the answer.
       - text: "Password: "
         echo: false
