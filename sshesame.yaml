@@ -49,8 +49,35 @@ auth:
     # Offer password authentication as an authentication option.
     enabled: true
 
-    # Accept all passwords.
+    # Accept all passwords. Set to false when using custom_auth usr - pwd combinations
     accepted: false
+
+  # Custom authentication with predefined usernames and passwords.
+  custom_auth:
+    enabled: true  # Set to false to disable this feature
+    users:
+      - root
+      - admin
+      - test
+      - guest
+      - adm
+      - user
+      - administrator
+      - ftp
+      - ec2-user
+      - azureuser
+
+    passwords:
+      - root
+      - test
+      - password
+      - admin
+      - administrator
+      - 12345678
+      - 1234
+      - 12345
+      - qwerty
+      - maintenance
 
   public_key_auth:
     # Offer public key authentication as an authentication option.
@@ -67,11 +94,11 @@ auth:
     accepted: false
 
     # Instruction for the keyboard interactive authentication.
-    instruction: Please verify your user credentials.
+    instruction: #Please verify your user credentials.
 
     questions:
       - text: "User: " # Keyboard interactive authentication question text.
-        echo: true # Enable echoing the answer.
+        echo: false # Enable echoing the answer.
       - text: "Password: "
         echo: false
 

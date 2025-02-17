@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v2"
@@ -39,6 +40,12 @@ type commonAuthConfig struct {
 	Accepted bool `yaml:"accepted"`
 }
 
+type customAuthConfig struct {
+	Enabled   bool     `yaml:"enabled"`
+	Usernames []string `yaml:"users"`
+	Passwords []string `yaml:"passwords"`
+}
+
 type keyboardInteractiveAuthQuestion struct {
 	Text string `yaml:"text"`
 	Echo bool   `yaml:"echo"`
@@ -56,6 +63,7 @@ type authConfig struct {
 	PasswordAuth            commonAuthConfig              `yaml:"password_auth"`
 	PublicKeyAuth           commonAuthConfig              `yaml:"public_key_auth"`
 	KeyboardInteractiveAuth keyboardInteractiveAuthConfig `yaml:"keyboard_interactive_auth"`
+	Password                customAuthConfig              `yaml:"custom_auth"`
 }
 
 type sshProtoConfig struct {
@@ -68,14 +76,29 @@ type sshProtoConfig struct {
 }
 
 type config struct {
-	Server   serverConfig   `yaml:"server"`
-	Logging  loggingConfig  `yaml:"logging"`
-	Auth     authConfig     `yaml:"auth"`
-	SSHProto sshProtoConfig `yaml:"ssh_proto"`
+	Server    serverConfig  `yaml:"server"`
+	Logging   loggingConfig `yaml:"logging"`
+	Auth      authConfig    `yaml:"auth"`
+	validUser string
+	validPass string
+	SSHProto  sshProtoConfig `yaml:"ssh_proto"`
 
 	parsedHostKeys []ssh.Signer
 	sshConfig      *ssh.ServerConfig
 	logFileHandle  io.WriteCloser
+}
+
+func (cfg *config) pickRandomCredentials() {
+	if len(cfg.Auth.Password.Usernames) == 0 || len(cfg.Auth.Password.Passwords) == 0 {
+		infoLogger.Printf("Error: No usernames or passwords available in config!")
+		return
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	cfg.validUser = cfg.Auth.Password.Usernames[rand.Intn(len(cfg.Auth.Password.Usernames))]
+	cfg.validPass = cfg.Auth.Password.Passwords[rand.Intn(len(cfg.Auth.Password.Passwords))]
+
+	infoLogger.Printf("Random authentication credentials selected.") // Do NOT print the username/password
 }
 
 func (cfg *config) setDefaults() {
@@ -268,6 +291,8 @@ func (cfg *config) load(configString string, dataDir string) error {
 	if err := cfg.setupLogging(); err != nil {
 		return err
 	}
+
+	cfg.pickRandomCredentials()
 
 	return nil
 }

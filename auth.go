@@ -38,17 +38,25 @@ func (cfg *config) getPasswordCallback() func(conn ssh.ConnMetadata, password []
 		return nil
 	}
 	return func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+		if conn.User() == cfg.validUser && string(password) == cfg.validPass {
+			connContext{ConnMetadata: conn, cfg: cfg}.logEvent(passwordAuthLog{
+				authLog: authLog{
+					User:     conn.User(),
+					Accepted: authAccepted(cfg.Auth.PasswordAuth.Accepted),
+				},
+				Password: string(password),
+			})
+			return nil, nil
+		}
+		// Log the failed attempt and return an error
 		connContext{ConnMetadata: conn, cfg: cfg}.logEvent(passwordAuthLog{
 			authLog: authLog{
 				User:     conn.User(),
-				Accepted: authAccepted(cfg.Auth.PasswordAuth.Accepted),
+				Accepted: authAccepted(false), // Failed authentication
 			},
 			Password: string(password),
 		})
-		if !cfg.Auth.PasswordAuth.Accepted {
-			return nil, errors.New("")
-		}
-		return nil, nil
+		return nil, errors.New("") // Return error for failed authentication
 	}
 }
 
