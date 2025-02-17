@@ -50,7 +50,7 @@ auth:
     enabled: true
 
     # Accept all passwords.
-    accepted: true
+    accepted: false
 
   public_key_auth:
     # Offer public key authentication as an authentication option.
@@ -64,7 +64,7 @@ auth:
     enabled: true
 
     # Accept all keyboard interactive answers.
-    accepted: true
+    accepted: false
 
     # Instruction for the keyboard interactive authentication.
     instruction: Please verify your user credentials.
