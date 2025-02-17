@@ -85,28 +85,11 @@ func (cfg *config) getKeyboardInteractiveCallback() func(conn ssh.ConnMetadata, 
 	}
 	var keyboardInteractiveQuestions []string
 	var keyboardInteractiveEchos []bool
-
+	for _, question := range cfg.Auth.KeyboardInteractiveAuth.Questions {
+		keyboardInteractiveQuestions = append(keyboardInteractiveQuestions, question.Text)
+		keyboardInteractiveEchos = append(keyboardInteractiveEchos, question.Echo)
+	}
 	return func(conn ssh.ConnMetadata, client ssh.KeyboardInteractiveChallenge) (*ssh.Permissions, error) {
-
-		// Very dumb method to do iteration checks on first entry because we don't want the username to be asked when one is alrady provided
-		usernameProvided := false
-
-		for _, question := range cfg.Auth.KeyboardInteractiveAuth.Questions {
-			// Skip first question if username is already set
-			if !usernameProvided && conn.User() != "" {
-				usernameProvided = true
-				continue
-			}
-			// Add question and echo to list
-			keyboardInteractiveQuestions = append(keyboardInteractiveQuestions, question.Text)
-			keyboardInteractiveEchos = append(keyboardInteractiveEchos, question.Echo)
-
-			// User question processed
-			if !usernameProvided {
-				usernameProvided = true
-			}
-		}
-
 		answers, err := client(conn.User(), cfg.Auth.KeyboardInteractiveAuth.Instruction, keyboardInteractiveQuestions, keyboardInteractiveEchos)
 		if err != nil {
 			warningLogger.Printf("Failed to process keyboard interactive authentication: %v", err)
