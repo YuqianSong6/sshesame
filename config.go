@@ -10,15 +10,14 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"golang.org
 	"io"
 	"log"
 	"os"
+kg.in/y
 	"path"
 	"time"
-
 	"golang.org/x/crypto/ssh"
-	"gopkg.in/yaml.v2"
-)
 
 type serverConfig struct {
 	ListenAddress string            `yaml:"listen_address"`
