@@ -34,11 +34,15 @@ func (cfg *config) getAuthLogCallback() func(conn ssh.ConnMetadata, method strin
 }
 
 func (cfg *config) getPasswordCallback() func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+	// If password auth is disabled we reject the connection
 	if !cfg.Auth.PasswordAuth.Enabled {
 		return nil
 	}
+
 	return func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+		// Check for valid connection
 		if conn.User() == cfg.validUser && string(password) == cfg.validPass {
+			// Logging
 			connContext{ConnMetadata: conn, cfg: cfg}.logEvent(passwordAuthLog{
 				authLog: authLog{
 					User:     conn.User(),
@@ -89,12 +93,36 @@ func (cfg *config) getKeyboardInteractiveCallback() func(conn ssh.ConnMetadata, 
 		keyboardInteractiveQuestions = append(keyboardInteractiveQuestions, question.Text)
 		keyboardInteractiveEchos = append(keyboardInteractiveEchos, question.Echo)
 	}
+	//return func(conn ssh.ConnMetadata, client ssh.KeyboardInteractiveChallenge) (*ssh.Permissions, error) {
+	//	answers, err := client(conn.User(), cfg.Auth.KeyboardInteractiveAuth.Instruction, keyboardInteractiveQuestions, keyboardInteractiveEchos)
+	//	if err != nil {
+	//		warningLogger.Printf("Failed to process keyboard interactive authentication: %v", err)
+	//		return nil, errors.New("")
+	//	}
+	//	connContext{ConnMetadata: conn, cfg: cfg}.logEvent(keyboardInteractiveAuthLog{
+	//		authLog: authLog{
+	//			User:     conn.User(),
+	//			Accepted: authAccepted(cfg.Auth.KeyboardInteractiveAuth.Accepted),
+	//		},
+	//		Answers: answers,
+	//	})
+	//	if answers[0] == cfg.validUser && answers[1] == cfg.validPass {
+	//		return nil, nil
+	//	}
+	//	if !cfg.Auth.KeyboardInteractiveAuth.Accepted {
+	//		return nil, errors.New("")
+	//	}
+	//	return nil, nil
+	//}
 	return func(conn ssh.ConnMetadata, client ssh.KeyboardInteractiveChallenge) (*ssh.Permissions, error) {
+		// Ask the user for the password (single question)
 		answers, err := client(conn.User(), cfg.Auth.KeyboardInteractiveAuth.Instruction, keyboardInteractiveQuestions, keyboardInteractiveEchos)
 		if err != nil {
 			warningLogger.Printf("Failed to process keyboard interactive authentication: %v", err)
 			return nil, errors.New("")
 		}
+
+		// Log the authentication event
 		connContext{ConnMetadata: conn, cfg: cfg}.logEvent(keyboardInteractiveAuthLog{
 			authLog: authLog{
 				User:     conn.User(),
@@ -102,13 +130,18 @@ func (cfg *config) getKeyboardInteractiveCallback() func(conn ssh.ConnMetadata, 
 			},
 			Answers: answers,
 		})
-		if answers[0] == cfg.validUser && answers[1] == cfg.validPass {
-			return nil, nil
+
+		// If the username and password are correct, allow the user to log in
+		if conn.User() == cfg.validUser && answers[0] == cfg.validPass {
+			return nil, nil // Successful authentication
 		}
+
+		// Reject if the password is incorrect or authentication isn't accepted
 		if !cfg.Auth.KeyboardInteractiveAuth.Accepted {
 			return nil, errors.New("")
 		}
-		return nil, nil
+
+		return nil, nil // If it's not accepted in configuration, reject silently
 	}
 }
 
